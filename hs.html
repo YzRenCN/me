@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Backrooms: Level 0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        /* 复古录像带效果 */
+        .vhs-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none; z-index: 20;
+        }
+        .noise {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJnoiPjxmZVR1cmJ1bGVuY2UgdHlwZT0iZnJhY3RhbE5vaXNlIiBiYXNlRnJlcXVlbmN5PSIwLjY1IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjA1Ii8+PC9zdmc+');
+            opacity: 0.4; pointer-events: none; z-index: 21;
+        }
+
+        /* 启动屏幕 */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 50; color: #d4c47c; transition: opacity 1s ease;
+        }
+        .glitch-text {
+            font-size: 3rem; font-weight: bold; text-transform: uppercase;
+            text-shadow: 2px 2px #ff0000, -2px -2px #0000ff;
+            animation: glitch 1s infinite alternate;
+        }
+        @keyframes glitch {
+            0% { text-shadow: 2px 2px #ff0000, -2px -2px #0000ff; transform: translate(0,0); }
+            20% { text-shadow: -2px 2px #ff0000, 2px -2px #0000ff; transform: translate(-2px, 2px); }
+            40% { text-shadow: 2px -2px #ff0000, -2px 2px #0000ff; transform: translate(2px, -2px); }
+            100% { text-shadow: 2px 2px #ff0000, -2px -2px #0000ff; transform: translate(0,0); }
+        }
+        
+        /* HUD */
+        #hud { display: none; padding: 20px; color: rgba(255, 255, 255, 0.7); }
+        .stat-bar { width: 200px; height: 10px; background: #333; margin-top: 5px; border: 1px solid #555; }
+        .stat-fill { height: 100%; background: #d4c47c; width: 100%; transition: width 0.3s; }
+        
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+            background: rgba(255, 255, 255, 0.3); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 15;
+        }
+        
+        #message-log {
+            position: absolute; bottom: 20px; left: 20px;
+            color: #fff; font-size: 14px; text-shadow: 1px 1px 2px black;
+            max-width: 400px;
+        }
+        .msg-item { margin-top: 5px; opacity: 0; animation: fadeIn 0.5s forwards; }
+        @keyframes fadeIn { to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- 视觉特效层 -->
+    <div class="vhs-overlay"></div>
+    <div class="noise"></div>
+    <div id="crosshair"></div>
+
+    <!-- 启动屏幕 -->
+    <div id="start-screen" class="pointer-events-auto">
+        <h1 class="glitch-text mb-4">THE BACKROOMS</h1>
+        <p class="mb-8 text-sm tracking-widest text-yellow-600">LEVEL 0: THE LOBBY</p>
+        <button id="start-btn" class="px-8 py-3 border border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-black transition-all duration-300 uppercase tracking-widest">
+            进入迷宫
+        </button>
+        <p class="mt-4 text-xs text-gray-500">建议佩戴耳机 | WASD移动 | 鼠标视角 | Shift奔跑</p>
+    </div>
+
+    <!-- 游戏UI层 -->
+    <div id="ui-layer">
+        <div id="hud">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="text-xs uppercase tracking-wider mb-1">Sanity (理智)</div>
+                    <div class="stat-bar"><div id="sanity-bar" class="stat-fill"></div></div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs uppercase tracking-wider mb-1">Status</div>
+                    <div id="status-text" class="text-yellow-500 text-sm">EXPLORING</div>
+                </div>
+            </div>
+            <div id="message-log"></div>
+        </div>
+        
+        <!-- 暂停菜单 -->
+        <div id="pause-menu" class="hidden absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
+            <div class="text-center">
+                <h2 class="text-2xl text-white mb-4">PAUSED</h2>
+                <button id="resume-btn" class="px-6 py-2 border border-white text-white hover:bg-white hover:text-black transition">RESUME</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container"></div>
+
+    <!-- 引入 Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="./gamehs.js"></script>
+</body>
+</html>
