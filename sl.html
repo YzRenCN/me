@@ -1,0 +1,237 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典扫雷 - 在线益智游戏</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 自定义样式补充 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none; /* 防止双击选中文本 */
+        }
+
+        .game-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 95vw;
+            transition: all 0.3s ease;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #e2e8f0;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.1s, transform 0.1s;
+            font-size: 16px;
+        }
+
+        .cell:hover:not(.revealed):not(.flagged) {
+            background-color: #cbd5e1;
+            transform: scale(1.05);
+        }
+
+        .cell.revealed {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            cursor: default;
+        }
+
+        .cell.mine {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .cell.flagged {
+            background-color: #fbbf24;
+            color: #78350f;
+        }
+
+        /* 数字颜色 */
+        .num-1 { color: #3b82f6; }
+        .num-2 { color: #10b981; }
+        .num-3 { color: #ef4444; }
+        .num-4 { color: #8b5cf6; }
+        .num-5 { color: #f59e0b; }
+        .num-6 { color: #06b6d4; }
+        .num-7 { color: #1f2937; }
+        .num-8 { color: #6b7280; }
+
+        .btn-primary {
+            background: linear-gradient(to right, #3b82f6, #2563eb);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* 模态框动画 */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- 头部导航 -->
+    <header class="w-full bg-white shadow-sm py-4 mb-6">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-bomb text-red-500 text-2xl"></i>
+                <h1 class="text-2xl font-bold text-slate-700">经典扫雷</h1>
+            </div>
+            <nav class="hidden md:flex space-x-6">
+                <a href="#" class="text-slate-600 hover:text-blue-600 font-medium">首页</a>
+                <a href="#rules" class="text-slate-600 hover:text-blue-600 font-medium">规则</a>
+                <a href="#stats" class="text-slate-600 hover:text-blue-600 font-medium">统计</a>
+            </nav>
+            <button id="theme-toggle" class="md:hidden text-slate-600">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主游戏区域 -->
+    <main class="game-container flex flex-col items-center">
+        
+        <!-- 控制面板 -->
+        <div class="w-full flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
+            <!-- 难度选择 -->
+            <div class="flex space-x-2 bg-slate-100 p-1 rounded-lg">
+                <button onclick="game.setDifficulty('easy')" class="difficulty-btn px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white shadow-sm text-blue-600" data-level="easy">初级</button>
+                <button onclick="game.setDifficulty('medium')" class="difficulty-btn px-4 py-2 rounded-md text-sm font-medium transition-colors text-slate-600 hover:bg-white/50" data-level="medium">中级</button>
+                <button onclick="game.setDifficulty('hard')" class="difficulty-btn px-4 py-2 rounded-md text-sm font-medium transition-colors text-slate-600 hover:bg-white/50" data-level="hard">高级</button>
+            </div>
+
+            <!-- 状态显示 -->
+            <div class="flex space-x-6 text-lg font-mono font-bold">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-flag text-yellow-500"></i>
+                    <span id="mine-count">010</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fa-regular fa-clock text-blue-500"></i>
+                    <span id="timer">000</span>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex space-x-3">
+                <button onclick="game.resetGame()" class="btn-primary flex items-center space-x-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>重新开始</span>
+                </button>
+                <button onclick="game.toggleHelp()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                    <i class="fa-solid fa-question-circle"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 棋盘网格 -->
+        <div id="grid-container" class="grid gap-1 bg-slate-300 p-2 rounded-lg shadow-inner select-none">
+            <!-- 格子将通过JS动态生成 -->
+        </div>
+
+        <!-- 底部提示 -->
+        <div class="mt-6 text-sm text-slate-500 text-center">
+            <p>左键点击翻开格子，右键点击标记地雷。</p>
+            <p class="mt-1">双击已翻开的数字可快速展开周围安全区域。</p>
+        </div>
+    </main>
+
+    <!-- 游戏规则模态框 -->
+    <div id="help-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">游戏帮助</h2>
+                <button onclick="game.toggleHelp()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-slate-600 text-sm">
+                <p><strong class="text-blue-600">目标：</strong> 找出所有非地雷的格子并翻开它们。</p>
+                <p><strong class="text-blue-600">数字含义：</strong> 格子上的数字表示其周围8个相邻格子中地雷的数量。</p>
+                <p><strong class="text-blue-600">操作：</strong></p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>左键：</strong> 翻开格子。如果是地雷，游戏结束。</li>
+                    <li><strong>右键：</strong> 标记/取消标记地雷（插旗）。</li>
+                    <li><strong>双击/左右键同时按：</strong> 如果周围标记的地雷数等于数字，则自动翻开周围未标记的格子。</li>
+                </ul>
+                <p><strong class="text-blue-600">胜利条件：</strong> 所有非地雷格子都被翻开。</p>
+            </div>
+            <div class="mt-6 text-right">
+                <button onclick="game.toggleHelp()" class="btn-primary">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏结束模态框 -->
+    <div id="game-over-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center transform transition-all scale-95 opacity-0" id="game-over-content">
+            <div id="game-over-icon" class="text-6xl mb-4"></div>
+            <h2 id="game-over-title" class="text-2xl font-bold mb-2"></h2>
+            <p id="game-over-message" class="text-slate-600 mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button onclick="game.resetGame(); document.getElementById('game-over-modal').classList.add('hidden');" class="btn-primary">
+                    再玩一次
+                </button>
+                <button onclick="document.getElementById('game-over-modal').classList.add('hidden');" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="mt-8 text-slate-500 text-sm">
+        <p>&copy; 2026 经典扫雷在线版 | 享受逻辑推理的乐趣</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
